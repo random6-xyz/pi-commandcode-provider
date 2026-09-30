@@ -41,6 +41,7 @@ import { createCommandCodeRuntime } from "./src/runtime.ts"
 import { createCommandCodeUsageProvider, type UsageProvider } from "./src/usage.ts"
 import { transcriptReadersFrom, withTranscriptPromptAndTools } from "./src/transcript.ts"
 import { createCommandCodeTransportRouter } from "./src/transport.ts"
+import { zdrHeadersForModel } from "./src/zdr.ts"
 
 const COMMAND_CODE_API = "commandcode-custom"
 const COMPAT_SOURCE_ID = "pi-commandcode-provider"
@@ -94,10 +95,13 @@ function providerApiKey(): string | undefined {
 }
 
 function commandCodeHeaders(): Record<string, string> | undefined {
-  if (process.env.CMD_ZDR === "1" || process.env.COMMANDCODE_ZDR === "1") {
-    return { "x-cmd-zdr": "1" }
+  // Fork default: request zero data retention for every model. The per-model
+  // policy in src/zdr.ts withholds the header from free and contributor
+  // models; set CMD_ZDR=0 (or COMMANDCODE_ZDR=0) to opt out entirely.
+  if (process.env.CMD_ZDR === "0" || process.env.COMMANDCODE_ZDR === "0") {
+    return undefined
   }
-  return undefined
+  return { "x-cmd-zdr": "1" }
 }
 
 /**
@@ -121,7 +125,8 @@ function createProviderConfig(
     apiKey: providerApiKey(),
     api: COMMAND_CODE_API,
     streamSimple: streamCommandCode,
-    headers,
+    // The ZDR header is attached per model below: a provider-wide header would
+    // also reach contributor and free models, which must not request ZDR.
     // Same alpha endpoints and credentials as the /commandcode-quota command.
     usage: createCommandCodeUsageProvider({
       apiBase: legacyApiBase(apiBase),
@@ -144,7 +149,7 @@ function createProviderConfig(
       cost: MODEL_COSTS[model.id] ?? ZERO_MODEL_COST,
       contextWindow: model.contextWindow,
       maxTokens: model.maxTokens,
-      headers,
+      headers: zdrHeadersForModel(model.id, headers),
       compat:
         model.api === "openai-completions"
           ? {

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Send the zero-data-retention header by default (`CMD_ZDR=0` opts out) and withhold it from contributor and free models, which are offered in exchange for data usage.
+
 ## 0.7.11 - 2026-10-28
 
 - Refresh the static capability snapshot to `command-code@1.88.1`, which publishes metadata for two models the CLI previously did not describe: `moonshotai/Kimi-K3.1-Pro` finally gains image input, reasoning, and selectable `low`/`high`/`max` efforts instead of the conservative text-only defaults it carried since 0.7.10, and the newly advertised `gpt-6.1-terra` arrives with image input, reasoning, and `low`/`medium`/`high`/`xhigh`/`max` efforts. Neither model publishes a model-specific output limit, so both keep the 65,536-token default. No other model metadata changed ([#175](https://github.com/patlux/pi-commandcode-provider/pull/175)).

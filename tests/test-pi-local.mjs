@@ -20,6 +20,7 @@ const COMPAT_CALLER_EXT_PATH = resolve(__dirname, "fixtures", "compat-caller-ext
 const TEST_MODEL = "gpt-5.4"
 const CLAUDE_TEST_MODEL = "claude-sonnet-4-6"
 const RESPONSES_TEST_MODEL = "deepseek/deepseek-v4.1-flash-fast"
+const FREE_TEST_MODEL = "inclusionai/ling-3.1-flash:free"
 
 function findPiBinary() {
   if (process.env.PI_BIN) return process.env.PI_BIN
@@ -97,12 +98,12 @@ function modelCatalog() {
       supported_endpoints: ["/messages"],
     },
     {
-      id: "cc-second-model",
+      id: FREE_TEST_MODEL,
       object: "model",
       created: 1779824324,
       owned_by: "command-code",
-      name: "Qwen 3.7 Max",
-      context_length: 1_000_000,
+      name: "Ling 3.1 Flash (Free)",
+      context_length: 262_144,
       supported_endpoints: ["/chat/completions"],
     },
   ]
@@ -892,7 +893,7 @@ try {
   assert.equal(recoveryList.code, 0, recoveryList.stderr)
   const recoveryOutput = recoveryList.stdout || recoveryList.stderr
   assert.match(recoveryOutput, /gpt-5\.4/)
-  assert.match(recoveryOutput, /cc-second-model/)
+  assert.match(recoveryOutput, /ling-3\.1-flash:free/)
   assert.doesNotMatch(recoveryList.stderr, /no valid cached catalog/)
   assert.doesNotMatch(recoveryList.stderr, /Failed to load extension/)
   assert.equal(modelListRequestCount, 1)
@@ -905,7 +906,7 @@ try {
   const listOutput = list.stdout || list.stderr
   assert.match(listOutput, /commandcode/)
   assert.match(listOutput, /gpt-5\.4/)
-  assert.match(listOutput, /cc-second-model/)
+  assert.match(listOutput, /ling-3\.1-flash:free/)
   assert.equal(modelListRequestCount, 1)
   assert.doesNotThrow(() => accessSync(modelsCachePath, constants.R_OK))
 
@@ -918,7 +919,7 @@ try {
   assert.equal(offlineList.code, 0, offlineList.stderr)
   const offlineListOutput = offlineList.stdout || offlineList.stderr
   assert.match(offlineListOutput, /gpt-5\.4/)
-  assert.match(offlineListOutput, /cc-second-model/)
+  assert.match(offlineListOutput, /ling-3\.1-flash:free/)
   assert.doesNotMatch(offlineList.stderr, /\[commandcode\]|Using the cached catalog/)
 
   console.log("[pi-local] use a cached model while model discovery is offline")
@@ -1029,6 +1030,27 @@ try {
     editTool?.function?.parameters?.properties?.edits?.items?.properties?.oldText?.type,
     "string",
   )
+
+  console.log("[pi-local] ZDR is withheld from free models")
+  requestCount = 0
+  const freePrint = await runPi(
+    [
+      "--no-extensions",
+      "-e",
+      EXT_PATH,
+      "-p",
+      "say mock token",
+      "--provider",
+      "commandcode",
+      "--model",
+      FREE_TEST_MODEL,
+    ],
+    30_000,
+  )
+  assert.equal(freePrint.code, 0, freePrint.stderr)
+  assert.match(freePrint.stdout, /mock-pi-ok/)
+  assert.equal(requestCount, 1)
+  assert.equal(lastRequestHeaders["x-cmd-zdr"], undefined)
 
   // pi 0.86+ passes providers a TranscriptContext whose system prompt and tools
   // live in system messages. The generate transport builds its own request, so
